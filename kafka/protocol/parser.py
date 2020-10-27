@@ -4,10 +4,11 @@ import collections
 import logging
 
 import kafka.errors as Errors
-from kafka.protocol.api import RequestHeader
+from kafka.protocol import FLEXIBLE_VERSIONS
+from kafka.protocol.api import RequestHeader, RequestHeaderV2
 from kafka.protocol.commit import GroupCoordinatorResponse
 from kafka.protocol.frame import KafkaBytes
-from kafka.protocol.types import Int32
+from kafka.protocol.types import Int32, TaggedFields
 from kafka.version import __version__
 
 log = logging.getLogger(__name__)
@@ -59,9 +60,14 @@ class KafkaProtocol(object):
         log.debug('Sending request %s', request)
         if correlation_id is None:
             correlation_id = self._next_correlation_id()
-        header = RequestHeader(request,
-                               correlation_id=correlation_id,
-                               client_id=self._client_id)
+        if not self.is_flexible_version_request(request):
+            header = RequestHeader(request,
+                                   correlation_id=correlation_id,
+                                   client_id=self._client_id)
+        else:
+            header = RequestHeaderV2(request,
+                                     correlation_id=correlation_id,
+                                     client_id=self._client_id)
         message = b''.join([header.encode(), request.encode()])
         size = Int32.encode(len(message))
         data = size + message
@@ -162,6 +168,9 @@ class KafkaProtocol(object):
                 'Correlation IDs do not match: sent %d, recv %d'
                 % (correlation_id, recv_correlation_id))
 
+        # Flexible response / request headers end in field buffer
+        if self.is_flexible_version_request(request):
+            _ = TaggedFields.decode(read_buffer)
         # decode response
         log.debug('Processing response %s', request.RESPONSE_TYPE.__name__)
         try:
@@ -181,3 +190,11 @@ class KafkaProtocol(object):
         self._receiving = False
         self._header.seek(0)
         self._rbuffer = None
+
+    @staticmethod
+    def is_flexible_version_request(request):
+        flexible_version = FLEXIBLE_VERSIONS.get(request.API_KEY)
+        request_version = request.API_VERSION
+        if flexible_version is None or flexible_version > request_version:
+            return False
+        return True

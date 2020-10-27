@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import abc
 
 from kafka.protocol.struct import Struct
-from kafka.protocol.types import Int16, Int32, String, Schema, Array
+from kafka.protocol.types import Int16, Int32, String, Schema, Array, TaggedFields
 
 
 class RequestHeader(Struct):
@@ -17,6 +17,22 @@ class RequestHeader(Struct):
     def __init__(self, request, correlation_id=0, client_id='kafka-python'):
         super(RequestHeader, self).__init__(
             request.API_KEY, request.API_VERSION, correlation_id, client_id
+        )
+
+
+class RequestHeaderV2(Struct):
+    # Flexible response / request headers end in field buffer
+    SCHEMA = Schema(
+        ('api_key', Int16),
+        ('api_version', Int16),
+        ('correlation_id', Int32),
+        ('client_id', String('utf-8')),
+        ('_tag_buffer', TaggedFields)
+    )
+
+    def __init__(self, request, correlation_id=0, client_id='kafka-python'):
+        super(RequestHeaderV2, self).__init__(
+            request.API_KEY, request.API_VERSION, correlation_id, client_id, {}
         )
 
 
