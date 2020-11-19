@@ -327,7 +327,7 @@ class BrokerConnection(object):
     def connect_blocking(self, timeout=float('inf')):
         if self.connected():
             return True
-        timeout += time.time()
+        # timeout += time.time()
         # First attempt to perform dns lookup
         # note that the underlying interface, socket.getaddrinfo,
         # has no explicit timeout so we may exceed the user-specified timeout

@@ -20,3 +20,11 @@ def test_empty_broker_list():
         [],  # empty brokers
         [(17, 'foo', []), (17, 'bar', [])]))  # topics w/ error
     assert len(cluster.brokers()) == 2
+
+
+def test_request():
+    from kafka import KafkaAdminClient
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+    ad = KafkaAdminClient(bootstrap_servers="localhost:9092")
+    top = ad.list_topics()

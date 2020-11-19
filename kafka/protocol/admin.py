@@ -971,6 +971,7 @@ AlterPartitionReassignmentsResponse = [AlterPartitionReassignmentsResponse_v0]
 
 
 class ListPartitionReassignmentsResponse_v0(Response):
+    FLEXIBLE_VERSION = True
     API_KEY = 46
     API_VERSION = 0
     SCHEMA = Schema(
@@ -984,15 +985,16 @@ class ListPartitionReassignmentsResponse_v0(Response):
                 ("replicas", CompactArray(Int32)),
                 ("adding_replicas", CompactArray(Int32)),
                 ("removing_replicas", CompactArray(Int32)),
-                ("_tagged_fields", TaggedFields)
+                ("tags", TaggedFields)
             )),
-            ("_tagged_fields", TaggedFields)
+            ("tags", TaggedFields)
         )),
-        ("_tagged_fields", TaggedFields)
+        ("tags", TaggedFields)
     )
 
 
 class ListPartitionReassignmentsRequest_v0(Request):
+    FLEXIBLE_VERSION = True
     API_KEY = 46
     API_VERSION = 0
     RESPONSE_TYPE = ListPartitionReassignmentsResponse_v0
@@ -1001,9 +1003,9 @@ class ListPartitionReassignmentsRequest_v0(Request):
         ("topics", CompactArray(
             ("name", CompactString("utf-8")),
             ("partition_index", CompactArray(Int32)),
-            ("_tagged_fields", TaggedFields)
+            ("tags", TaggedFields)
         )),
-        ("_tagged_fields", TaggedFields)
+        ("tags", TaggedFields)
     )
 
 

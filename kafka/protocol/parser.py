@@ -4,7 +4,6 @@ import collections
 import logging
 
 import kafka.errors as Errors
-from kafka.protocol import FLEXIBLE_VERSIONS
 from kafka.protocol.api import RequestHeader, RequestHeaderV2
 from kafka.protocol.commit import GroupCoordinatorResponse
 from kafka.protocol.frame import KafkaBytes
@@ -60,14 +59,8 @@ class KafkaProtocol(object):
         log.debug('Sending request %s', request)
         if correlation_id is None:
             correlation_id = self._next_correlation_id()
-        if not self.is_flexible_version_request(request):
-            header = RequestHeader(request,
-                                   correlation_id=correlation_id,
-                                   client_id=self._client_id)
-        else:
-            header = RequestHeaderV2(request,
-                                     correlation_id=correlation_id,
-                                     client_id=self._client_id)
+
+        header = request.build_request_header(correlation_id=correlation_id, client_id=self._client_id)
         message = b''.join([header.encode(), request.encode()])
         size = Int32.encode(len(message))
         data = size + message
@@ -141,17 +134,12 @@ class KafkaProtocol(object):
         return responses
 
     def _process_response(self, read_buffer):
-        recv_correlation_id = Int32.decode(read_buffer)
-        log.debug('Received correlation id: %d', recv_correlation_id)
-
         if not self.in_flight_requests:
-            raise Errors.CorrelationIdError(
-                'No in-flight-request found for server response'
-                ' with correlation ID %d'
-                % (recv_correlation_id,))
-
+            raise Errors.CorrelationIdError('No in-flight-request found for server response')
         (correlation_id, request) = self.in_flight_requests.popleft()
-
+        response_header = request.parse_response_header(read_buffer)
+        recv_correlation_id = response_header.correlation_id
+        log.debug('Received correlation id: %d', recv_correlation_id)
         # 0.8.2 quirk
         if (recv_correlation_id == 0 and
             correlation_id != 0 and
@@ -169,7 +157,7 @@ class KafkaProtocol(object):
                 % (correlation_id, recv_correlation_id))
 
         # Flexible response / request headers end in field buffer
-        if self.is_flexible_version_request(request):
+        if request.FLEXIBLE_VERSION:
             _ = TaggedFields.decode(read_buffer)
         # decode response
         log.debug('Processing response %s', request.RESPONSE_TYPE.__name__)
@@ -191,10 +179,3 @@ class KafkaProtocol(object):
         self._header.seek(0)
         self._rbuffer = None
 
-    @staticmethod
-    def is_flexible_version_request(request):
-        flexible_version = FLEXIBLE_VERSIONS.get(request.API_KEY)
-        request_version = request.API_VERSION
-        if flexible_version is None or flexible_version > request_version:
-            return False
-        return True

@@ -20,7 +20,7 @@ from kafka.metrics import MetricConfig, Metrics
 from kafka.protocol.admin import (
     CreateTopicsRequest, DeleteTopicsRequest, DescribeConfigsRequest, AlterConfigsRequest, CreatePartitionsRequest,
     ListGroupsRequest, DescribeGroupsRequest, DescribeAclsRequest, CreateAclsRequest, DeleteAclsRequest,
-    DeleteGroupsRequest, ListPartitionReassignmentsRequest
+    DeleteGroupsRequest
 )
 from kafka.protocol.commit import GroupCoordinatorRequest, OffsetFetchRequest
 from kafka.protocol.metadata import MetadataRequest
@@ -459,28 +459,6 @@ class KafkaAdminClient(object):
         # TODO convert structs to a more pythonic interface
         # TODO raise exceptions if errors
         return self._send_request_to_controller(request)
-
-    def list_partition_reassignments(self, topics_partitions, timeout_ms=None):
-        """List ongoing partition reassignments in the cluster.
-
-        :param topics_partitions: A list of TopicPartition objects.
-        :param timeout_ms: Milliseconds to wait for new topics to be created
-            before the broker returns.
-        :return: Appropriate version of ListPartitionReassignment class.
-        """
-        version = self._matching_api_version(ListPartitionReassignmentsRequest)
-        timeout_ms = self._validate_timeout(timeout_ms)
-        if version != 0:
-            raise NotImplementedError(
-                "Support for ListPartitionReassignments v{} has not yet been added to KafkaAdminClient."
-                .format(version))
-        payload = defaultdict(set)
-        for tp in topics_partitions:
-            payload[tp.topic].add(tp.partition)
-        request = ListPartitionReassignmentsRequest[version](timeout_ms, [(k, v, {}) for k, v in payload.items()], {})
-        future = self._send_request_to_node(self._controller_id, request)
-        self._wait_for_futures([future])
-        return future.value
 
     def delete_topics(self, topics, timeout_ms=None):
         """Delete topics from the cluster.
